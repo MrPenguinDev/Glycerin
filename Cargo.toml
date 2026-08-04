@@ -1,0 +1,47 @@
+[package]
+name = "glycerin"
+version = "0.11.0"
+edition = "2021"
+description = "Glycerin Browser Engine - Phase 11: H3 Streaming, WASM Layout, Cross-platform Sandbox"
+authors = ["Dharmendra"]
+
+[dependencies]
+# Core Graphics (Vulkan only)
+wgpu = { version = "0.18", default-features = false, features = ["vulkan"] }
+pollster = "0.3"
+
+# Networking (HTTP/3 + QUIC)
+quinn = { version = "0.10", default-features = false, features = ["rustls", "ring"] }
+h3 = { version = "0.0.4", default-features = false }
+h3-quinn = { version = "0.0.4", default-features = false }
+rustls = { version = "0.21", default-features = false, features = ["ring"] }
+
+# JS Sandbox
+rquickjs = { version = "0.4", default-features = false, features = ["parallel", "loader"] }
+
+# IPC & Serialization
+flatbuffers = { version = "23", default-features = false }
+toml = { version = "0.8", default-features = false, features = ["parse"] }
+
+# System & Sandboxing
+libc = "0.2"
+
+# Async runtime (minimal, for quinn only)
+tokio = { version = "1", default-features = false, features = ["rt", "net", "time"] }
+
+# Font parsing for WASM text layout
+ttf-parser = { version = "0.19", default-features = false }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 4
+strip = true
+panic = "abort"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "glycerin"
+path = "src/main.rs"

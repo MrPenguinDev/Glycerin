@@ -1,0 +1,37 @@
+// Glycerin Protocol - FlatBuffer Schema for Zero-Copy IPC
+// Used by Rust Engine, Elm UI, and Elixir Backend
+
+namespace glycerin;
+
+enum MessageType: byte {
+  None = 0,
+  Navigate = 1,
+  Search = 2,
+  TabNew = 3,
+  TabClose = 4,
+  TabSwitch = 5,
+  NetworkRequest = 6,
+  NetworkResponse = 7,
+  NetworkError = 8,
+  JSExecute = 9,
+  JSResult = 10,
+  RenderFrame = 11,
+  LoadProgress = 12,
+  StatusUpdate = 13,
+  ExtensionLoad = 14,
+  ExtensionEvent = 15
+}
+
+table Message {
+  type: MessageType;
+  payload: string;
+  timestamp: ulong;
+  tab_id: int;
+  url: string;
+  status_code: int;
+  progress: float;
+  wasm_module: string;
+  proxy_host: string;
+}
+
+root_type Message;

@@ -10,15 +10,22 @@
 target/
 
 # Dependencies
-**/node_modules/
-**/venv/
-**/.venv/
-**/__pycache__/
-**/.mypy_cache/
-**/.pytest_cache/
-**/.gradle/
-**/julia-*/
-**/zig*/
+Cargo.lock
+**/vendor/
+**/deps/
+
+# Python related (if any Python in project)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.env
+.env.local
+.env.*
 
 # Logs and temp files
 *.log
@@ -26,22 +33,23 @@ target/
 *.swp
 *.swo
 
-# Environment
-.env
-.env.local
-.env.*
-
 # Editors
 .vscode/
 .idea/
 *.swp
 *.swo
 
+# OS specific
+.DS_Store
+Thumbs.db
+
 # Coverage
+.coverage
 coverage/
 htmlcov/
-.coverage
 
-# Rust-specific
-Cargo.lock
+# Build systems
+build/
+dist/
+*.egg-info/
 ```

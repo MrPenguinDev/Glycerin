@@ -1,8 +1,8 @@
 [package]
 name = "glycerin"
-version = "0.18.0"
+version = "0.19.0"
 edition = "2021"
-description = "Glycerin Browser Engine - Complete: UI, Persistence, Media, Security, Extensions, DevTools"
+description = "Glycerin Browser Engine - Complete: UI, Persistence, Media, Security, Extensions, DevTools, Rendering, JS"
 authors = ["Dharmendra"]
 
 [dependencies]
@@ -21,8 +21,8 @@ h3-quinn = { version = "0.0.4", default-features = false }
 rustls = { version = "0.21", default-features = false, features = ["ring"] }
 reqwest = { version = "0.11", features = ["json", "stream", "cookies"] }
 
-# JS Sandbox
-rquickjs = { version = "0.4", default-features = false, features = ["parallel", "loader"] }
+# JavaScript Engine (Complete Implementation)
+rquickjs = { version = "0.5", features = ["macro", "loader", "parallel"] }
 
 # IPC & Serialization
 flatbuffers = { version = "23", default-features = false }
@@ -37,6 +37,18 @@ dirs = "5.0"
 # Media Support (Phase 3: HTML5 Video/Audio)
 rodio = "0.17"
 image = { version = "0.24", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+
+# HTML Parsing & DOM (Complete Rendering)
+html5ever = "0.26"
+markup5ever_rcdom = "0.2"
+selectors = "0.25"
+
+# CSS Parsing & Styling
+cssparser = "0.31"
+fontdb = "0.16"
+
+# GPU-Accelerated Rendering (Skia)
+skia-safe = { version = "0.70", features = ["gl", "textlayout", "svg"] }
 
 # System & Sandboxing
 libc = "0.2"
@@ -56,13 +68,18 @@ base64 = "0.21"
 # Phase 4: Security
 regex = "1.10"
 bitflags = "2.4"
+sha2 = "0.10"
 
 # Phase 5: Extensions (WebAssembly)
 wasmtime = "17.0"
+wasmparser = "0.200"
 anyhow = "1.0"
 
 # Phase 6: DevTools
-# (serde and serde_json already included above)
+uuid = { version = "1.6", features = ["v4"] }
+lazy_static = "1.4"
+log = "0.4"
+env_logger = "0.11"
 
 [profile.release]
 opt-level = 3

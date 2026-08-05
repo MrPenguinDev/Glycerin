@@ -1,5 +1,5 @@
 //! Glycerin Browser Engine - Complete Implementation
-//! Phases 1-6: UI Shell, Data Persistence, Media, Security, Extensions, DevTools
+//! Phases 1-6 + Rendering Engine + JavaScript Engine
 
 // Phase modules
 mod ui_shell;
@@ -8,6 +8,10 @@ mod media_support;
 mod security;
 mod extensions;
 mod devtools;
+
+// New complete implementations
+mod rendering;
+mod js_engine;
 
 use std::ffi::{c_char, c_void, CStr};
 use std::ptr;
@@ -22,13 +26,15 @@ use std::process;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock, mpsc};
 
-// Re-export phase modules
+// Re-export all modules
 pub use ui_shell::{BrowserShell, BrowserTab, Message as UiMessage};
 pub use data_persistence::{DatabaseManager, HistoryEntry, Bookmark, Cookie, SessionData};
 pub use media_support::{AudioManager, ImageDecoder, VideoPlayer, MediaType};
 pub use security::{SecurityContext, ContentSecurityPolicy, SafeBrowsingManager, ProcessIsolator, SandboxFlags};
 pub use extensions::{ExtensionEngine, ExtensionManifest, ContentScript};
 pub use devtools::{DevToolsSession, DevToolsMessage, FindInPage, ViewportController};
+pub use rendering::{HtmlRenderer, ComputedStyle, LayoutBox, DomElement};
+pub use js_engine::{JsEngine, JsConsole, DomBindings};
 
 // ============================================================================
 // FFI Bridge for Elm ↔ Rust Communication
@@ -1259,5 +1265,233 @@ mod tests {
     fn test_base64_encode() {
         assert_eq!(base64_encode(b"Hello"), "SGVsbG8=");
         assert_eq!(base64_encode(b""), "");
+    }
+}
+
+// ============================================================================
+// Integration Tests for New Modules
+// ============================================================================
+
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+
+    #[test]
+    fn test_rendering_pipeline() {
+        // Test HTML parsing
+        let html = r#"<!DOCTYPE html>
+            <html>
+                <head><title>Test Page</title></head>
+                <body>
+                    <div id="main" class="container">
+                        <h1>Hello World</h1>
+                        <p>Test content</p>
+                    </div>
+                </body>
+            </html>"#;
+
+        let mut renderer = HtmlRenderer::parse_html(html);
+        let elements = renderer.build_dom_elements(&renderer.get_document());
+        
+        assert!(elements.len() > 0);
+        
+        // Find main div
+        let main_div = elements.iter().find(|e| e.id.as_deref() == Some("main"));
+        assert!(main_div.is_some());
+        
+        // Apply styles
+        renderer.apply_styles(".container { color: red; }");
+        assert!(renderer.styles.len() > 0);
+        
+        // Calculate layout
+        let layout = renderer.calculate_layout(800.0, 600.0);
+        assert_eq!(layout.width, 800.0);
+        assert_eq!(layout.height, 600.0);
+    }
+
+    #[test]
+    fn test_javascript_engine() {
+        let engine = JsEngine::new().unwrap();
+        engine.init().unwrap();
+
+        // Test arithmetic
+        let result: i32 = engine.evaluate("2 + 2").unwrap();
+        assert_eq!(result, 4);
+
+        // Test strings
+        let result: String = engine.evaluate("'Hello' + ' World'").unwrap();
+        assert_eq!(result, "Hello World");
+
+        // Test arrays
+        let result: Vec<i32> = engine.evaluate("[1, 2, 3].map(x => x * 2)").unwrap();
+        assert_eq!(result, vec![2, 4, 6]);
+
+        // Test console
+        engine.execute("console.log('Test log')").unwrap();
+        let logs = engine.get_console_logs();
+        assert_eq!(logs.len(), 1);
+    }
+
+    #[test]
+    fn test_dom_bindings() {
+        let engine = JsEngine::new().unwrap();
+        engine.init().unwrap();
+
+        // Test document title
+        engine.execute("document.title = 'My Test Page'").unwrap();
+        assert_eq!(engine.get_document_title(), "My Test Page");
+
+        // Test element creation
+        let element: String = engine.evaluate("document.createElement('div')").unwrap();
+        assert!(element.starts_with("elem_"));
+
+        // Test query selector
+        let result: String = engine.evaluate("document.querySelector('.test')").unwrap();
+        assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn test_full_page_rendering() {
+        // Create JS engine
+        let js_engine = JsEngine::new().unwrap();
+        js_engine.init().unwrap();
+
+        // Execute page script
+        let script = r#"
+            var pageTitle = "Dynamic Page";
+            document.title = pageTitle;
+            
+            function calculateTotal(prices) {
+                return prices.reduce((sum, price) => sum + price, 0);
+            }
+            
+            calculateTotal([10, 20, 30, 40])
+        "#;
+
+        let result: i32 = js_engine.evaluate(script).unwrap();
+        assert_eq!(result, 100);
+        assert_eq!(js_engine.get_document_title(), "Dynamic Page");
+
+        // Parse and render HTML
+        let html = r#"<!DOCTYPE html>
+            <html>
+                <body>
+                    <header><h1>Site Header</h1></header>
+                    <main>
+                        <article>
+                            <h2>Article Title</h2>
+                            <p>Article content goes here...</p>
+                        </article>
+                    </main>
+                    <footer>Copyright 2024</footer>
+                </body>
+            </html>"#;
+
+        let mut renderer = HtmlRenderer::parse_html(html);
+        renderer.apply_styles("");
+        
+        let elements = renderer.build_dom_elements(&renderer.get_document());
+        assert!(elements.len() >= 5); // html, body, header, main, footer at minimum
+
+        let layout = renderer.calculate_layout(1024.0, 768.0);
+        assert_eq!(layout.width, 1024.0);
+    }
+
+    #[test]
+    fn test_timer_api() {
+        let engine = JsEngine::new().unwrap();
+        engine.init().unwrap();
+
+        // Create timers
+        let timer1: u32 = engine.evaluate("setTimeout(() => {}, 100)").unwrap();
+        let timer2: u32 = engine.evaluate("setInterval(() => {}, 200)").unwrap();
+
+        assert!(timer1 > 0);
+        assert!(timer2 > 0);
+        assert_ne!(timer1, timer2);
+
+        let active = engine.get_active_timers();
+        assert!(active.contains(&timer1));
+        assert!(active.contains(&timer2));
+
+        // Clear timers
+        engine.execute("clearTimeout($timer1)").unwrap();
+        engine.execute("clearInterval($timer2)").unwrap();
+
+        let active = engine.get_active_timers();
+        assert!(!active.contains(&timer1));
+        assert!(!active.contains(&timer2));
+    }
+
+    #[test]
+    fn test_css_styling() {
+        let html = r#"<html><body>
+            <div class="box">Box 1</div>
+            <div class="box special">Box 2</div>
+            <div id="unique">Unique Box</div>
+        </body></html>"#;
+
+        let mut renderer = HtmlRenderer::parse_html(html);
+        
+        let css = r#"
+            .box {
+                display: block;
+                width: 100px;
+                height: 100px;
+                background-color: blue;
+            }
+            .special {
+                background-color: red;
+            }
+            #unique {
+                position: absolute;
+                top: 50px;
+            }
+        "#;
+
+        renderer.apply_styles(css);
+        
+        let elements = renderer.build_dom_elements(&renderer.get_document());
+        assert!(elements.len() >= 3);
+    }
+
+    #[test]
+    fn test_complex_javascript() {
+        let engine = JsEngine::new().unwrap();
+        engine.init().unwrap();
+
+        // Test object manipulation
+        let code = r#"
+            var obj = {
+                name: "Test",
+                value: 42,
+                nested: {
+                    deep: "value"
+                },
+                items: [1, 2, 3]
+            };
+            
+            obj.value += 8;
+            obj.items.push(4);
+            
+            JSON.stringify(obj)
+        "#;
+
+        let result: String = engine.evaluate(code).unwrap();
+        assert!(result.contains("\"name\":\"Test\""));
+        assert!(result.contains("\"value\":50"));
+        assert!(result.contains("\"items\":[1,2,3,4]"));
+
+        // Test functions
+        let func_code = r#"
+            function factorial(n) {
+                if (n <= 1) return 1;
+                return n * factorial(n - 1);
+            }
+            factorial(5)
+        "#;
+
+        let result: i32 = engine.evaluate(func_code).unwrap();
+        assert_eq!(result, 120);
     }
 }

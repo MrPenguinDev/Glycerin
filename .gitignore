@@ -1,7 +1,15 @@
 ```
+# Compiled and build artifacts
+*.o
+*.obj
+*.out
 # Dependencies
 target/
-
-# Compiled and build artifacts
-**/*.rs.bk
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+# Editors
+.vscode/
+.idea/
 ```

@@ -1,9 +1,15 @@
 [package]
 name = "glycerin"
-version = "0.19.0"
+version = "1.0.0"
 edition = "2021"
-description = "Glycerin Browser Engine - Complete: UI, Persistence, Media, Security, Extensions, DevTools, Rendering, JS"
+description = "Glycerin Browser Engine v1.0 - Production Ready: High-performance, privacy-first browser engine built in Rust to compete with Chrome"
 authors = ["Dharmendra"]
+license = "MIT"
+homepage = "https://glycerin.dev"
+repository = "https://github.com/glycerin-browser/glycerin"
+keywords = ["browser", "web", "engine", "privacy", "performance", "rust", "gpu", "rendering"]
+categories = ["web-programming", "graphics", "gui", "multimedia", "rendering"]
+readme = "README.md"
 
 [dependencies]
 # Core Graphics (Vulkan + WebGPU for cross-platform)
@@ -83,10 +89,29 @@ env_logger = "0.11"
 
 [profile.release]
 opt-level = 3
-lto = "thin"
-codegen-units = 4
+lto = "fat"
+codegen-units = 1
 strip = true
 panic = "abort"
+
+# Profile optimized for daily use - balance between size and speed
+[profile.release-fast]
+inherits = "release"
+lto = "thin"
+codegen-units = 4
+
+# Debug profile with better optimizations for development
+[profile.dev]
+opt-level = 1
+debug = true
+debug-assertions = false
+overflow-checks = true
+
+# Release profile for smaller binaries (good for distribution)
+[profile.release-small]
+inherits = "release"
+opt-level = "z"
+lto = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]

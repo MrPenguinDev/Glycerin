@@ -2,54 +2,14 @@
 # Compiled and build artifacts
 *.o
 *.obj
-*.exe
-*.dll
-*.so
-*.a
 *.out
-target/
-
 # Dependencies
-Cargo.lock
-**/vendor/
-**/deps/
-
-# Python related (if any Python in project)
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.venv/
-.env
-.env.local
-.env.*
-
+target/
 # Logs and temp files
 *.log
 *.tmp
 *.swp
-*.swo
-
 # Editors
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# OS specific
-.DS_Store
-Thumbs.db
-
-# Coverage
-.coverage
-coverage/
-htmlcov/
-
-# Build systems
-build/
-dist/
-*.egg-info/
 ```

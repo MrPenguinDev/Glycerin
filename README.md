@@ -98,7 +98,7 @@ cargo test
 cargo run --release
 ```
 
-### Package Managers
+### Package Managers (Soon)
 
 ```bash
 # Linux (Snap)

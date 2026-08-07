@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 
 /// Represents a node in the DOM tree for inspection
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
 pub struct DOMNode {
     pub id: u64,
     pub tag_name: String,
@@ -18,7 +18,7 @@ pub struct DOMNode {
     pub box_model: BoxModel,
 }
 
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default)]
 pub struct BoxModel {
     pub x: f32,
     pub y: f32,

@@ -10,10 +10,10 @@ mod ui_shell;
 mod data_persistence;
 mod media_support;
 mod security;
-mod extensions;
 mod devtools;
 mod rendering;
 mod js_engine;
+mod extensions;
 
 // ============================================================================
 // Standard Library Imports
@@ -21,16 +21,15 @@ mod js_engine;
 
 use std::ffi::{c_char, c_void, CStr};
 use std::ptr;
-use std::sync::atomic::{AtomicBool, AtomicUsize, AtomicU64, AtomicI64, Ordering};
-use std::collections::{HashMap, HashSet, VecDeque, BTreeMap};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{File, OpenOptions};
-use std::io::{Read, Write, BufReader, BufWriter, Seek, SeekFrom};
-use std::net::{SocketAddr, UdpSocket, TcpStream, TcpListener};
+use std::io::{Read, Write, BufReader, BufWriter};
+use std::net::{SocketAddr, UdpSocket};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use std::thread::{self, JoinHandle};
-use std::process::{self, Command, Stdio};
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, RwLock, mpsc, Condvar};
+use std::thread::{self};
+use std::path::{PathBuf};
+use std::sync::{Arc, Mutex, RwLock};
 use std::cell::RefCell;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -876,7 +875,7 @@ mod h3_client {
                 .map_err(|_| "H3 connection failed")?;
 
             // Send GET request
-            let req = http::Request::builder()
+            let req = h3::Request::builder()
                 .uri(format!("https://{}/", host))
                 .body(())
                 .map_err(|_| "Request build failed")?;
@@ -912,7 +911,6 @@ mod h3_client {
 
 mod wasm_layout {
     use super::*;
-    use std::path::Path;
 
     pub struct TextLayoutEngine {
         modules: HashMap<String, Vec<u8>>,
@@ -1116,44 +1114,7 @@ fn get_next_proxy() -> &'static str {
 // Extension System via QuickJS Sandbox
 // Allows users to load .js plugins that interact with FlatBuffer bridge
 // ============================================================================
-
-mod extensions {
-    use super::*;
-
-    pub struct ExtensionHost {
-        runtime: rquickjs::Runtime,
-    }
-
-    impl ExtensionHost {
-        pub fn new() -> Result<Self, &'static str> {
-            let runtime = rquickjs::Runtime::new().map_err(|_| "Failed to create QuickJS runtime")?;
-            Ok(Self { runtime })
-        }
-
-        pub fn load_extension(&self, js_code: &str) -> Result<(), &'static str> {
-            let ctx = rquickjs::Context::full(&self.runtime).map_err(|_| "Context creation failed")?;
-            
-            ctx.with(|ctx| {
-                // Evaluate extension code in sandbox
-                let _: rquickjs::Value = ctx.eval(js_code)
-                    .map_err(|_| "Extension execution failed")?;
-                
-                log_info("Extension loaded successfully");
-                Ok(())
-            })
-        }
-
-        pub fn call_extension(&self, func_name: &str, args: &[&str]) -> Result<String, &'static str> {
-            let ctx = rquickjs::Context::full(&self.runtime).map_err(|_| "Context failed")?;
-            
-            ctx.with(|ctx| {
-                let result: String = ctx.eval(&format!("{}({})", func_name, args.join(",")))
-                    .map_err(|_| "Extension call failed")?;
-                Ok(result)
-            })
-        }
-    }
-}
+// Note: This inline module has been removed - use the extensions.rs file instead
 
 // ============================================================================
 // Global State (Consolidated)
@@ -1161,7 +1122,6 @@ mod extensions {
 
 static mut H3_CLIENT: Option<h3_client::H3Client> = None;
 static mut WASM_ENGINE: Option<wasm_layout::TextLayoutEngine> = None;
-static mut EXT_HOST: Option<extensions::ExtensionHost> = None;
 
 fn spawn_h3_request(url: &str) {
     thread::spawn(move || {

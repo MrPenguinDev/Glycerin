@@ -2,8 +2,8 @@
 //! Implements address bar, navigation buttons, tab management, and browser window
 
 use iced::widget::{button, column, container, row, text, text_input};
-use iced::{Element, Length, Subscription, Theme};
-use iced_aw::{TabLabel, Tabs};
+use iced::{Element, Length, Subscription, Task};
+use iced_aw::{tabs, TabLabel};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -73,7 +73,7 @@ impl BrowserShell {
         }
     }
     
-    pub fn update(&mut self, message: Message) -> iced::Task<Message> {
+    pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::UrlSubmitted(url) => {
                 if let Some(tab_id) = self.active_tab_id {
@@ -154,7 +154,7 @@ impl BrowserShell {
             _ => {}
         }
         
-        iced::Task::none()
+        Task::none()
     }
     
     pub fn view(&self) -> Element<Message> {
@@ -179,12 +179,9 @@ impl BrowserShell {
             ));
         }
         
-        let tabs_widget = Tabs::new(
-            self.active_tab_id,
-            tab_labels.into_iter().map(|(label, id)| {
-                (label, Message::TabSelected(id))
-            }).collect(),
-        )
+        let tabs_widget = tabs(self.active_tab_id, tab_labels.into_iter().map(|(label, id)| {
+            (label, Message::TabSelected(id))
+        }).collect())
         .on_close(Message::CloseTab);
         
         // Build navigation bar

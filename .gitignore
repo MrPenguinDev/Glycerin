@@ -1,4 +1,4 @@
-```
+```rust
 # Compiled and build artifacts
 *.o
 *.obj
@@ -7,30 +7,47 @@
 *.so
 *.a
 *.out
+target/
 
 # Dependencies
-target/
-**/target/
+Cargo.lock
+**/vendor/
+**/deps/
 
 # Logs and temp files
 *.log
 *.tmp
 *.swp
 
-# Editors
-.vscode/
-.idea/
-
 # Environment
 .env
 .env.local
 *.env.*
 
-# Coverage reports
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Coverage
 coverage/
 htmlcov/
 .coverage
 
-# Rust-specific
-Cargo.lock
+# MyPy cache
+.mypy_cache/
+# Pytest cache
+.pytest_cache/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# System files
+.DS_Store
+Thumbs.db
 ```

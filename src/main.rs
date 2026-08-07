@@ -1093,6 +1093,49 @@ fn get_next_proxy() -> &'static str {
 }
 
 // ============================================================================
+// Extension System via QuickJS Sandbox
+// Allows users to load .js plugins that interact with FlatBuffer bridge
+// ============================================================================
+
+mod extensions {
+    use super::*;
+
+    pub struct ExtensionHost {
+        runtime: rquickjs::Runtime,
+    }
+
+    impl ExtensionHost {
+        pub fn new() -> Result<Self, &'static str> {
+            let runtime = rquickjs::Runtime::new().map_err(|_| "Failed to create QuickJS runtime")?;
+            Ok(Self { runtime })
+        }
+
+        pub fn load_extension(&self, js_code: &str) -> Result<(), &'static str> {
+            let ctx = rquickjs::Context::full(&self.runtime).map_err(|_| "Context creation failed")?;
+            
+            ctx.with(|ctx| {
+                // Evaluate extension code in sandbox
+                let _: rquickjs::Value = ctx.eval(js_code)
+                    .map_err(|_| "Extension execution failed")?;
+                
+                log_info("Extension loaded successfully");
+                Ok(())
+            })
+        }
+
+        pub fn call_extension(&self, func_name: &str, args: &[&str]) -> Result<String, &'static str> {
+            let ctx = rquickjs::Context::full(&self.runtime).map_err(|_| "Context failed")?;
+            
+            ctx.with(|ctx| {
+                let result: String = ctx.eval(&format!("{}({})", func_name, args.join(",")))
+                    .map_err(|_| "Extension call failed")?;
+                Ok(result)
+            })
+        }
+    }
+}
+
+// ============================================================================
 // Global State (Consolidated)
 // ============================================================================
 

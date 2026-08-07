@@ -23,26 +23,6 @@ pub struct DomElement {
     pub handle: Handle,
 }
 
-/// Implementation details for selector matching
-#[derive(Debug, Clone)]
-pub struct DomElementImpl;
-
-impl selectors::SelectorImpl for DomElementImpl {
-    type AttrValue = selectors::parser::AttrValue;
-    type Identifier = selectors::parser::Identifier;
-    type LocalName = selectors::parser::LocalName;
-    type NamespacePrefix = selectors::parser::NamespacePrefix;
-    type NamespaceUrl = selectors::parser::NamespaceUrl;
-    type BorrowedNamespaceUrl = selectors::parser::BorrowedNamespaceUrl;
-    type BorrowedLocalName = selectors::parser::BorrowedLocalName;
-
-    type NonTSPseudoClass = selectors::parser::NonTSPseudoClass;
-    type PseudoElement = selectors::parser::PseudoElement;
-    type VendorPrefix = selectors::parser::VendorPrefix;
-
-    type ExtraMatchingData<'a> = ();
-}
-
 impl Element for DomElement {
     type Impl = DomElementImpl;
 
@@ -50,19 +30,18 @@ impl Element for DomElement {
         true
     }
 
-    fn get_id(&self) -> Option<<Self::Impl as selectors::SelectorImpl>::Identifier> {
-        self.id.as_ref().map(|id| selectors::parser::Identifier::from(id.as_str()))
+    fn get_id(&self) -> Option<::selectors::attr::Identifier> {
+        self.id.as_ref().map(|id| ::selectors::attr::Identifier::from(id.as_str()))
     }
 
-    fn has_class(&self, name: <Self::Impl as selectors::SelectorImpl>::Identifier, _case_sensitivity: selectors::attr::CaseSensitivity) -> bool {
-        let name_str: &str = name.as_ref();
-        self.classes.iter().any(|c| c == name_str)
+    fn has_class(&self, name: ::selectors::ClassName) -> bool {
+        self.classes.iter().any(|c| c == name.0.as_ref())
     }
 
     fn attr_matches(
         &self,
-        ns: &selectors::attr::NamespaceConstraint<&<Self::Impl as selectors::SelectorImpl>::NamespaceUrl>,
-        local_name: &<Self::Impl as selectors::SelectorImpl>::LocalName,
+        ns: &::selectors::NamespaceConstraint<&::selectors::Namespace>,
+        local_name: &::selectors::LocalName,
         matcher: &dyn selectors::attr::AttrMatcher,
     ) -> bool {
         if let Some(value) = self.attributes.get(local_name.as_ref()) {
@@ -74,8 +53,8 @@ impl Element for DomElement {
 
     fn match_non_ts_pseudo_class(
         &self,
-        _pc: <Self::Impl as selectors::SelectorImpl>::NonTSPseudoClass,
-        _context: &mut selectors::matching::SelectorMatchingContext<Self::Impl>,
+        _pc: ::selectors::NonTSNonCompoundPseudoClass,
+        _context: &mut ::selectors::matching::SelectorMatchingContext<Self::Impl>,
     ) -> Result<bool, ()> {
         Ok(false)
     }
@@ -98,6 +77,10 @@ impl Element for DomElement {
         unimplemented!()
     }
 
+    fn last_element_child(&self) -> Option<DomElement> {
+        unimplemented!()
+    }
+
     fn prev_sibling_element(&self) -> Option<DomElement> {
         unimplemented!()
     }
@@ -117,6 +100,26 @@ impl Element for DomElement {
     fn apply_selector_flags(&self, _flags: selectors::matching::ElementSelectorFlags) {
         // No-op for now
     }
+}
+
+/// Implementation details for selector matching
+#[derive(Clone)]
+pub struct DomElementImpl;
+
+impl selectors::SelectorImpl for DomElementImpl {
+    type AttrValue = String;
+    type Identifier = ::selectors::attr::Identifier;
+    type LocalName = ::selectors::LocalName;
+    type NamespacePrefix = ::selectors::NamespacePrefix;
+    type NamespaceUrl = ::selectors::Namespace;
+    type BorrowedNamespaceUrl = ::selectors::Namespace;
+    type BorrowedLocalName = ::selectors::LocalName;
+
+    type NonTSPseudoClass = ::selectors::NonTSNonCompoundPseudoClass;
+    type PseudoElement = ::selectors::PseudoElement;
+
+    type ExtraMatchingData = ();
+    type VendorPrefix = ::selectors::VendorPrefix;
 }
 
 /// CSS Style properties

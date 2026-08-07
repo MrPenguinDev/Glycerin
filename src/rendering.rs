@@ -11,8 +11,167 @@ use html5ever::tendril::TendrilSink;
 use html5ever::{parse_document, tree_builder::TreeBuilderOpts};
 use markup5ever_rcdom::{Handle, NodeData, RcDom};
 use selectors::{Element, OpaqueElement};
+use selectors::attr::AttrSelectorOperation;
+use selectors::matching::{CaseSensitivity, MatchingContext};
 use std::collections::HashMap;
-use std::rc::Rc;
+use cssparser::ToCss;
+
+/// Custom identifier type for selector matching
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SelectorIdentifier(String);
+
+impl From<&str> for SelectorIdentifier {
+    fn from(s: &str) -> Self {
+        SelectorIdentifier(s.to_string())
+    }
+}
+
+impl AsRef<str> for SelectorIdentifier {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl ToCss for SelectorIdentifier {
+    fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
+    where
+        W: std::fmt::Write,
+    {
+        write!(dest, "{}", self.0)
+    }
+}
+
+/// Custom class name type for selector matching
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SelectorClassName(pub String);
+
+impl From<&str> for SelectorClassName {
+    fn from(s: &str) -> Self {
+        SelectorClassName(s.to_string())
+    }
+}
+
+impl AsRef<str> for SelectorClassName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl ToCss for SelectorClassName {
+    fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
+    where
+        W: std::fmt::Write,
+    {
+        write!(dest, "{}", self.0)
+    }
+}
+
+/// Custom local name type for selector matching
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SelectorLocalName(String);
+
+impl From<&str> for SelectorLocalName {
+    fn from(s: &str) -> Self {
+        SelectorLocalName(s.to_string())
+    }
+}
+
+impl AsRef<str> for SelectorLocalName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Custom namespace type for selector matching
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SelectorNamespace(String);
+
+impl From<&str> for SelectorNamespace {
+    fn from(s: &str) -> Self {
+        SelectorNamespace(s.to_string())
+    }
+}
+
+impl AsRef<str> for SelectorNamespace {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl ToCss for SelectorNamespace {
+    fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
+    where
+        W: std::fmt::Write,
+    {
+        write!(dest, "{}", self.0)
+    }
+}
+
+/// Custom namespace prefix type
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SelectorNamespacePrefix(String);
+
+impl From<&str> for SelectorNamespacePrefix {
+    fn from(s: &str) -> Self {
+        SelectorNamespacePrefix(s.to_string())
+    }
+}
+
+impl AsRef<str> for SelectorNamespacePrefix {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Custom pseudo-class type
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SelectorPseudoClass(String);
+
+impl From<&str> for SelectorPseudoClass {
+    fn from(s: &str) -> Self {
+        SelectorPseudoClass(s.to_string())
+    }
+}
+
+impl AsRef<str> for SelectorPseudoClass {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl ToCss for SelectorPseudoClass {
+    fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
+    where
+        W: std::fmt::Write,
+    {
+        write!(dest, ":{}", self.0)
+    }
+}
+
+/// Custom pseudo-element type
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SelectorPseudoElement(String);
+
+impl From<&str> for SelectorPseudoElement {
+    fn from(s: &str) -> Self {
+        SelectorPseudoElement(s.to_string())
+    }
+}
+
+impl AsRef<str> for SelectorPseudoElement {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl ToCss for SelectorPseudoElement {
+    fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
+    where
+        W: std::fmt::Write,
+    {
+        write!(dest, "::{}", self.0)
+    }
+}
 
 /// DOM Element wrapper for selector matching
 #[derive(Clone)]
@@ -31,22 +190,30 @@ impl Element for DomElement {
         true
     }
 
-    fn get_id(&self) -> Option<::selectors::attr::Identifier> {
-        self.id.as_ref().map(|id| ::selectors::attr::Identifier::from(id.as_str()))
+    fn get_id(&self) -> Option<SelectorIdentifier> {
+        self.id.as_ref().map(|id| SelectorIdentifier::from(id.as_str()))
     }
 
-    fn has_class(&self, name: ::selectors::ClassName) -> bool {
-        self.classes.iter().any(|c| c == name.0.as_ref())
+    fn has_class(&self, name: &SelectorClassName, _case_sensitivity: CaseSensitivity) -> bool {
+        self.classes.iter().any(|c| c == name.as_ref())
     }
 
     fn attr_matches(
         &self,
-        ns: &::selectors::NamespaceConstraint<&::selectors::Namespace>,
-        local_name: &::selectors::LocalName,
-        matcher: &dyn selectors::attr::AttrMatcher,
+        ns: &selectors::attr::NamespaceConstraint<&SelectorNamespace>,
+        local_name: &SelectorLocalName,
+        operation: &AttrSelectorOperation<&SelectorAttrValue>,
     ) -> bool {
         if let Some(value) = self.attributes.get(local_name.as_ref()) {
-            matcher.matches_value(value)
+            match operation {
+                AttrSelectorOperation::Exists => true,
+                AttrSelectorOperation::Equal(val) => value == val.as_ref(),
+                AttrSelectorOperation::Includes(val) => value.split_whitespace().any(|v| v == val.as_ref()),
+                AttrSelectorOperation::DashMatch(val) => value == val.as_ref() || value.starts_with(&format!("{}-", val.as_ref())),
+                AttrSelectorOperation::Prefix(val) => value.starts_with(val.as_ref()),
+                AttrSelectorOperation::Suffix(val) => value.ends_with(val.as_ref()),
+                AttrSelectorOperation::Substring(val) => value.contains(val.as_ref()),
+            }
         } else {
             false
         }
@@ -54,8 +221,8 @@ impl Element for DomElement {
 
     fn match_non_ts_pseudo_class(
         &self,
-        _pc: ::selectors::NonTSNonCompoundPseudoClass,
-        _context: &mut ::selectors::matching::SelectorMatchingContext<Self::Impl>,
+        _pc: &SelectorPseudoClass,
+        _context: &mut MatchingContext<Self::Impl>,
     ) -> Result<bool, ()> {
         Ok(false)
     }
@@ -75,10 +242,6 @@ impl Element for DomElement {
     }
 
     fn first_element_child(&self) -> Option<DomElement> {
-        unimplemented!()
-    }
-
-    fn last_element_child(&self) -> Option<DomElement> {
         unimplemented!()
     }
 
@@ -103,24 +266,49 @@ impl Element for DomElement {
     }
 }
 
+/// Custom attribute value type that implements ToCss
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SelectorAttrValue(String);
+
+impl From<&str> for SelectorAttrValue {
+    fn from(s: &str) -> Self {
+        SelectorAttrValue(s.to_string())
+    }
+}
+
+impl AsRef<str> for SelectorAttrValue {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl ToCss for SelectorAttrValue {
+    fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
+    where
+        W: std::fmt::Write,
+    {
+        write!(dest, "{}", self.0)
+    }
+}
+
 /// Implementation details for selector matching
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DomElementImpl;
 
 impl selectors::SelectorImpl for DomElementImpl {
-    type AttrValue = String;
-    type Identifier = ::selectors::attr::Identifier;
-    type LocalName = ::selectors::LocalName;
-    type NamespacePrefix = ::selectors::NamespacePrefix;
-    type NamespaceUrl = ::selectors::Namespace;
-    type BorrowedNamespaceUrl = ::selectors::Namespace;
-    type BorrowedLocalName = ::selectors::LocalName;
+    type AttrValue = SelectorAttrValue;
+    type Identifier = SelectorIdentifier;
+    type LocalName = SelectorLocalName;
+    type NamespacePrefix = SelectorNamespacePrefix;
+    type NamespaceUrl = SelectorNamespace;
+    type BorrowedNamespaceUrl = SelectorNamespace;
+    type BorrowedLocalName = SelectorLocalName;
+    type ClassName = SelectorClassName;
 
-    type NonTSPseudoClass = ::selectors::NonTSNonCompoundPseudoClass;
-    type PseudoElement = ::selectors::PseudoElement;
+    type NonCompoundPseudoClass = SelectorPseudoClass;
+    type PseudoElement = SelectorPseudoElement;
 
-    type ExtraMatchingData = ();
-    type VendorPrefix = ::selectors::VendorPrefix;
+    type ExtraMatchingData<'a> = ();
 }
 
 /// CSS Style properties

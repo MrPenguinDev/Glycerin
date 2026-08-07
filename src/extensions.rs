@@ -4,7 +4,6 @@
 //! plugins that modify browser behavior, inject scripts, and add features.
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use wasmtime::*;
 
 /// Metadata about an extension

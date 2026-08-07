@@ -13,13 +13,15 @@ readme = "README.md"
 
 [dependencies]
 # Core Graphics (Vulkan + WebGPU for cross-platform)
-# Version 0.19.3 pinned to resolve iced 0.12 / web-sys dependency conflict
 wgpu = "0.19.3"
 pollster = "0.3"
 
 # UI Framework (Phase 1: Browser Chrome)
-iced = { version = "0.12", features = ["wgpu", "tokio"] }
-iced_aw = "0.9"
+iced = { version = "0.13", features = ["wgpu", "tokio"] }
+iced_aw = "0.10"
+
+# HTTP types
+http = "1.1"
 
 # Networking (HTTP/3 + QUIC + HTTP/2 + HTTP/1.1)
 quinn = { version = "0.10", default-features = false, features = ["rustls"] }

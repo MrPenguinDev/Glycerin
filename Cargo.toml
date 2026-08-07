@@ -44,7 +44,7 @@ rusqlite = { version = "0.30", features = ["bundled"] }
 dirs = "5.0"
 
 # Media Support (Phase 3: HTML5 Video/Audio)
-rodio = "0.17"
+rodio = { version = "0.17", optional = true }
 image = { version = "0.24", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 
 # HTML Parsing & DOM (Complete Rendering)
@@ -57,7 +57,7 @@ cssparser = "0.31"
 fontdb = "0.16"
 
 # GPU-Accelerated Rendering (Skia)
-skia-safe = { version = "0.70", features = ["gl", "textlayout", "svg"] }
+skia-safe = { version = "0.70", features = ["gl", "textlayout", "svg"], optional = true }
 
 # System & Sandboxing
 libc = "0.2"
@@ -89,6 +89,11 @@ uuid = { version = "1.6", features = ["v4"] }
 lazy_static = "1.4"
 log = "0.4"
 env_logger = "0.11"
+
+[features]
+default = []
+native-audio = ["dep:rodio"]
+native-skia = ["dep:skia-safe"]
 
 # Low-Memory Release Profile (Prevents RAM Exhaustion & Freezing)
 [profile.release]

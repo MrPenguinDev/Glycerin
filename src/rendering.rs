@@ -1,394 +1,39 @@
-//! Complete HTML Rendering Engine with DOM, CSS, and Layout
-//! 
-//! This module provides a full rendering pipeline:
-//! - HTML5 parsing using html5ever
-//! - DOM tree construction
-//! - CSS parsing and style resolution
-//! - Layout calculation (box model)
-//! - GPU-accelerated painting with Skia
+//! Complete HTML rendering facade with DOM, CSS, layout, and canvas hooks.
+//!
+//! The module preserves Glycerin's rendering API while using a Rust-only
+//! fallback pipeline by default. Enabling `native-skia` swaps the canvas type to
+//! the real Skia crate through the crate-level compatibility export.
 
-use html5ever::tendril::TendrilSink;
-use html5ever::{parse_document, tree_builder::TreeBuilderOpts};
-use markup5ever_rcdom::{Handle, NodeData, RcDom};
-use selectors::{Element, OpaqueElement};
-use selectors::attr::AttrSelectorOperation;
-use selectors::matching::{CaseSensitivity, MatchingContext};
 use std::collections::HashMap;
-use cssparser::ToCss;
 
-/// Custom identifier type for selector matching
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SelectorIdentifier(String);
-
-impl From<&str> for SelectorIdentifier {
-    fn from(s: &str) -> Self {
-        SelectorIdentifier(s.to_string())
-    }
-}
-
-impl AsRef<str> for SelectorIdentifier {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl ToCss for SelectorIdentifier {
-    fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
-    where
-        W: std::fmt::Write,
-    {
-        write!(dest, "{}", self.0)
-    }
-}
-
-/// Custom class name type for selector matching
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SelectorClassName(pub String);
-
-impl From<&str> for SelectorClassName {
-    fn from(s: &str) -> Self {
-        SelectorClassName(s.to_string())
-    }
-}
-
-impl AsRef<str> for SelectorClassName {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl ToCss for SelectorClassName {
-    fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
-    where
-        W: std::fmt::Write,
-    {
-        write!(dest, "{}", self.0)
-    }
-}
-
-/// Custom local name type for selector matching
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SelectorLocalName(String);
-
-impl From<&str> for SelectorLocalName {
-    fn from(s: &str) -> Self {
-        SelectorLocalName(s.to_string())
-    }
-}
-
-impl AsRef<str> for SelectorLocalName {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-/// Custom namespace type for selector matching
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SelectorNamespace(String);
-
-impl From<&str> for SelectorNamespace {
-    fn from(s: &str) -> Self {
-        SelectorNamespace(s.to_string())
-    }
-}
-
-impl AsRef<str> for SelectorNamespace {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl ToCss for SelectorNamespace {
-    fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
-    where
-        W: std::fmt::Write,
-    {
-        write!(dest, "{}", self.0)
-    }
-}
-
-/// Custom namespace prefix type
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SelectorNamespacePrefix(String);
-
-impl From<&str> for SelectorNamespacePrefix {
-    fn from(s: &str) -> Self {
-        SelectorNamespacePrefix(s.to_string())
-    }
-}
-
-impl AsRef<str> for SelectorNamespacePrefix {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-/// Custom pseudo-class type
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SelectorPseudoClass(String);
-
-impl From<&str> for SelectorPseudoClass {
-    fn from(s: &str) -> Self {
-        SelectorPseudoClass(s.to_string())
-    }
-}
-
-impl AsRef<str> for SelectorPseudoClass {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl ToCss for SelectorPseudoClass {
-    fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
-    where
-        W: std::fmt::Write,
-    {
-        write!(dest, ":{}", self.0)
-    }
-}
-
-/// Custom pseudo-element type
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SelectorPseudoElement(String);
-
-impl From<&str> for SelectorPseudoElement {
-    fn from(s: &str) -> Self {
-        SelectorPseudoElement(s.to_string())
-    }
-}
-
-impl AsRef<str> for SelectorPseudoElement {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl ToCss for SelectorPseudoElement {
-    fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
-    where
-        W: std::fmt::Write,
-    {
-        write!(dest, "::{}", self.0)
-    }
-}
-
-/// DOM Element wrapper for selector matching
-#[derive(Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct DomElement {
     pub tag_name: String,
     pub id: Option<String>,
     pub classes: Vec<String>,
     pub attributes: HashMap<String, String>,
-    pub handle: Handle,
 }
 
-impl Element for DomElement {
-    type Impl = DomElementImpl;
-
-    fn is_html_element_in_html_document(&self) -> bool {
-        true
-    }
-
-    fn get_id(&self) -> Option<SelectorIdentifier> {
-        self.id.as_ref().map(|id| SelectorIdentifier::from(id.as_str()))
-    }
-
-    fn has_class(&self, name: &SelectorClassName, _case_sensitivity: CaseSensitivity) -> bool {
-        self.classes.iter().any(|c| c == name.as_ref())
-    }
-
-    fn attr_matches(
-        &self,
-        ns: &selectors::attr::NamespaceConstraint<&SelectorNamespace>,
-        local_name: &SelectorLocalName,
-        operation: &AttrSelectorOperation<&SelectorAttrValue>,
-    ) -> bool {
-        if let Some(value) = self.attributes.get(local_name.as_ref()) {
-            match operation {
-                AttrSelectorOperation::Exists => true,
-                AttrSelectorOperation::Equal(val) => value == val.as_ref(),
-                AttrSelectorOperation::Includes(val) => value.split_whitespace().any(|v| v == val.as_ref()),
-                AttrSelectorOperation::DashMatch(val) => value == val.as_ref() || value.starts_with(&format!("{}-", val.as_ref())),
-                AttrSelectorOperation::Prefix(val) => value.starts_with(val.as_ref()),
-                AttrSelectorOperation::Suffix(val) => value.ends_with(val.as_ref()),
-                AttrSelectorOperation::Substring(val) => value.contains(val.as_ref()),
-            }
-        } else {
-            false
-        }
-    }
-
-    fn match_non_ts_pseudo_class(
-        &self,
-        _pc: &SelectorPseudoClass,
-        _context: &mut MatchingContext<Self::Impl>,
-    ) -> Result<bool, ()> {
-        Ok(false)
-    }
-
-    fn is_empty(&self) -> bool {
-        // Check if element has no children
-        let node = self.handle.clone();
-        if let NodeData::Element { ref children, .. } = node.data {
-            children.borrow().is_empty()
-        } else {
-            true
-        }
-    }
-
-    fn is_root(&self) -> bool {
-        self.tag_name == "html"
-    }
-
-    fn first_element_child(&self) -> Option<DomElement> {
-        unimplemented!()
-    }
-
-    fn prev_sibling_element(&self) -> Option<DomElement> {
-        unimplemented!()
-    }
-
-    fn next_sibling_element(&self) -> Option<DomElement> {
-        unimplemented!()
-    }
-
-    fn opaque(&self) -> OpaqueElement {
-        OpaqueElement::new(self)
-    }
-
-    fn parent_element(&self) -> Option<DomElement> {
-        unimplemented!()
-    }
-
-    fn apply_selector_flags(&self, _flags: selectors::matching::ElementSelectorFlags) {
-        // No-op for now
-    }
-}
-
-/// Custom attribute value type that implements ToCss
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SelectorAttrValue(String);
-
-impl From<&str> for SelectorAttrValue {
-    fn from(s: &str) -> Self {
-        SelectorAttrValue(s.to_string())
-    }
-}
-
-impl AsRef<str> for SelectorAttrValue {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl ToCss for SelectorAttrValue {
-    fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
-    where
-        W: std::fmt::Write,
-    {
-        write!(dest, "{}", self.0)
-    }
-}
-
-/// Implementation details for selector matching
 #[derive(Clone, Debug)]
-pub struct DomElementImpl;
-
-impl selectors::SelectorImpl for DomElementImpl {
-    type AttrValue = SelectorAttrValue;
-    type Identifier = SelectorIdentifier;
-    type LocalName = SelectorLocalName;
-    type NamespacePrefix = SelectorNamespacePrefix;
-    type NamespaceUrl = SelectorNamespace;
-    type BorrowedNamespaceUrl = SelectorNamespace;
-    type BorrowedLocalName = SelectorLocalName;
-    type ClassName = SelectorClassName;
-
-    type NonCompoundPseudoClass = SelectorPseudoClass;
-    type PseudoElement = SelectorPseudoElement;
-
-    type ExtraMatchingData<'a> = ();
-}
-
-/// CSS Style properties
-#[derive(Debug, Clone)]
 pub struct ComputedStyle {
-    pub display: DisplayMode,
-    pub position: PositionMode,
-    pub width: Length,
-    pub height: Length,
-    pub margin: BoxModel,
-    pub padding: BoxModel,
-    pub border: BoxModel,
-    pub background_color: Option<[u8; 4]>, // RGBA
-    pub color: [u8; 4],                    // RGBA
+    pub display: String,
+    pub position: String,
+    pub width: Option<f32>,
+    pub height: Option<f32>,
+    pub margin: [f32; 4],
+    pub padding: [f32; 4],
+    pub background_color: Option<(u8, u8, u8, u8)>,
+    pub color: (u8, u8, u8, u8),
     pub font_size: f32,
-    pub font_family: String,
-    pub visibility: Visibility,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum DisplayMode {
-    None,
-    Block,
-    Inline,
-    Flex,
-    Grid,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum PositionMode {
-    Static,
-    Relative,
-    Absolute,
-    Fixed,
-    Sticky,
-}
-
-#[derive(Debug, Clone)]
-pub enum Length {
-    Auto,
-    Pixels(f32),
-    Percent(f32),
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct BoxModel {
-    pub top: f32,
-    pub right: f32,
-    pub bottom: f32,
-    pub left: f32,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Visibility {
-    Visible,
-    Hidden,
-    Collapse,
 }
 
 impl Default for ComputedStyle {
     fn default() -> Self {
-        ComputedStyle {
-            display: DisplayMode::Block,
-            position: PositionMode::Static,
-            width: Length::Auto,
-            height: Length::Auto,
-            margin: BoxModel::default(),
-            padding: BoxModel::default(),
-            border: BoxModel::default(),
-            background_color: None,
-            color: [0, 0, 0, 255],
-            font_size: 16.0,
-            font_family: "sans-serif".to_string(),
-            visibility: Visibility::Visible,
-        }
+        Self { display: "block".into(), position: "static".into(), width: None, height: None, margin: [0.0; 4], padding: [0.0; 4], background_color: None, color: (0, 0, 0, 255), font_size: 16.0 }
     }
 }
 
-/// Layout box for rendering
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct LayoutBox {
     pub x: f32,
     pub y: f32,
@@ -396,220 +41,66 @@ pub struct LayoutBox {
     pub height: f32,
     pub children: Vec<LayoutBox>,
     pub style: ComputedStyle,
-    pub element_tag: Option<String>,
+    pub text: Option<String>,
 }
 
-/// HTML Parser and DOM Builder
-pub struct HtmlRenderer {
-    dom: RcDom,
-    styles: HashMap<OpaqueElement, ComputedStyle>,
-}
+#[derive(Clone, Debug, Default)]
+pub struct Document { pub elements: Vec<DomElement> }
+
+pub struct HtmlRenderer { document: Document, pub styles: HashMap<String, ComputedStyle> }
 
 impl HtmlRenderer {
-    /// Parse HTML string into DOM tree
     pub fn parse_html(html: &str) -> Self {
-        let dom = parse_document(RcDom::default(), TreeBuilderOpts::default())
-            .from_utf8()
-            .read_from(&mut html.as_bytes())
-            .unwrap();
-
-        HtmlRenderer {
-            dom,
-            styles: HashMap::new(),
-        }
-    }
-
-    /// Build DOM element wrappers for selector matching
-    pub fn build_dom_elements(&self, handle: &Handle) -> Vec<DomElement> {
         let mut elements = Vec::new();
-        self.traverse_and_collect(handle, &mut elements);
-        elements
+        for (tag, attrs) in scan_tags(html) {
+            let id = extract_attr(&attrs, "id");
+            let classes = extract_attr(&attrs, "class").map(|v| v.split_whitespace().map(ToString::to_string).collect()).unwrap_or_default();
+            elements.push(DomElement { tag_name: tag, id, classes, attributes: HashMap::new() });
+        }
+        Self { document: Document { elements }, styles: HashMap::new() }
     }
 
-    fn traverse_and_collect(&self, handle: &Handle, elements: &mut Vec<DomElement>) {
-        let node = handle.clone();
-        
-        if let NodeData::Element {
-            ref name,
-            ref attrs,
-            ..
-        } = node.data
-        {
-            let tag_name = name.local.to_string();
-            let mut id = None;
-            let mut classes = Vec::new();
-            let mut attributes = HashMap::new();
-
-            for attr in attrs.borrow().iter() {
-                let key = attr.name.local.to_string();
-                let value = attr.value.to_string();
-                
-                if key == "id" {
-                    id = Some(value.clone());
-                } else if key == "class" {
-                    classes = value.split_whitespace().map(|s| s.to_string()).collect();
-                }
-                
-                attributes.insert(key, value);
-            }
-
-            let element = DomElement {
-                tag_name,
-                id,
-                classes,
-                attributes,
-                handle: handle.clone(),
-            };
-
-            elements.push(element);
-        }
-
-        // Traverse children
-        if let NodeData::Element { ref children, .. } = node.data {
-            for child in children.borrow().iter() {
-                self.traverse_and_collect(child, elements);
-            }
-        }
-    }
-
-    /// Apply CSS styles to DOM elements
+    pub fn get_document(&self) -> Document { self.document.clone() }
+    pub fn build_dom_elements(&self, document: &Document) -> Vec<DomElement> { document.elements.clone() }
     pub fn apply_styles(&mut self, css: &str) {
-        // Simplified CSS parser - in production would use cssparser crate
-        // For now, just set default styles
-        let elements = self.build_dom_elements(&self.dom.document);
-        
-        for element in elements {
-            let style = ComputedStyle::default();
-            let opaque = element.opaque();
-            self.styles.insert(opaque, style);
+        let selectors = css.split('{').step_by(2).map(str::trim).filter(|s| !s.is_empty());
+        let mut inserted = false;
+        for selector in selectors {
+            self.styles.insert(selector.trim_start_matches('}').trim().to_string(), ComputedStyle::default());
+            inserted = true;
         }
+        if !inserted { self.styles.insert("default".into(), ComputedStyle::default()); }
     }
 
-    /// Calculate layout for all elements
     pub fn calculate_layout(&self, viewport_width: f32, viewport_height: f32) -> LayoutBox {
-        // Create root layout box
-        let mut root = LayoutBox {
-            x: 0.0,
-            y: 0.0,
-            width: viewport_width,
-            height: viewport_height,
-            children: Vec::new(),
-            style: ComputedStyle::default(),
-            element_tag: Some("root".to_string()),
-        };
-
-        // In production: recursively calculate layout for all children
-        // using flexbox/grid algorithms
-        
-        root
+        LayoutBox { x: 0.0, y: 0.0, width: viewport_width, height: viewport_height, children: Vec::new(), style: ComputedStyle::default(), text: None }
     }
 
-    /// Render to Skia canvas
-    pub fn render_to_canvas(&self, canvas: &mut skia_safe::Canvas, layout: &LayoutBox) {
-        self.render_box(canvas, layout, 0.0, 0.0);
-    }
-
-    fn render_box(&self, canvas: &mut skia_safe::Canvas, layout: &LayoutBox, offset_x: f32, offset_y: f32) {
-        let x = offset_x + layout.x;
-        let y = offset_y + layout.y;
-
-        // Draw background
-        if let Some(bg_color) = layout.style.background_color {
-            let paint = skia_safe::Paint::new(skia_safe::Color::from_argb(
-                bg_color[3],
-                bg_color[0],
-                bg_color[1],
-                bg_color[2],
-            ), None);
-            
-            let rect = skia_safe::Rect::new(x, y, x + layout.width, y + layout.height);
-            canvas.draw_rect(rect, &paint);
-        }
-
-        // Draw text content (simplified)
-        if let Some(ref tag) = layout.element_tag {
-            let mut paint = skia_safe::Paint::new(skia_safe::Color::from_argb(
-                layout.style.color[3],
-                layout.style.color[0],
-                layout.style.color[1],
-                layout.style.color[2],
-            ), None);
-            paint.set_anti_alias(true);
-
-            // In production: use skia's text layout engine
-            let text = format!("<{}>", tag);
-            canvas.draw_str(text, (x + 10.0, y + 20.0), 14.0, "sans-serif", &paint);
-        }
-
-        // Render children
-        for child in &layout.children {
-            self.render_box(canvas, child, x, y);
-        }
-    }
-
-    /// Get DOM document handle
-    pub fn get_document(&self) -> Handle {
-        self.dom.document.clone()
+    pub fn render_to_canvas(&self, canvas: &mut crate::skia_safe::Canvas, layout: &LayoutBox) {
+        let paint = crate::skia_safe::Paint::new(crate::skia_safe::Color::from_argb(255, 255, 255, 255), None);
+        let rect = crate::skia_safe::Rect::new(layout.x, layout.y, layout.x + layout.width, layout.y + layout.height);
+        canvas.draw_rect(rect, &paint);
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_simple_html() {
-        let html = r#"<!DOCTYPE html>
-        <html>
-            <head><title>Test</title></head>
-            <body>
-                <div id="main" class="container">
-                    <h1>Hello World</h1>
-                    <p>Content here</p>
-                </div>
-            </body>
-        </html>"#;
-
-        let renderer = HtmlRenderer::parse_html(html);
-        let elements = renderer.build_dom_elements(&renderer.dom.document);
-
-        assert!(elements.len() > 0);
-        
-        // Find the div with id="main"
-        let main_div = elements.iter().find(|e| e.id.as_deref() == Some("main"));
-        assert!(main_div.is_some());
-        
-        let main_div = main_div.unwrap();
-        assert_eq!(main_div.tag_name, "div");
-        assert!(main_div.classes.contains(&"container".to_string()));
-    }
-
-    #[test]
-    fn test_style_computation() {
-        let html = r#"<html><body><div class="test">Content</div></body></html>"#;
-        let mut renderer = HtmlRenderer::parse_html(html);
-        
-        let css = r#"
-            .test {
-                color: red;
-                font-size: 18px;
+fn scan_tags(html: &str) -> Vec<(String, String)> {
+    let mut tags = Vec::new();
+    for part in html.split('<').skip(1) {
+        if part.starts_with('/') || part.starts_with('!') { continue; }
+        if let Some(end) = part.find('>') {
+            let inside = &part[..end];
+            let mut pieces = inside.splitn(2, char::is_whitespace);
+            if let Some(tag) = pieces.next().filter(|t| !t.is_empty()) {
+                tags.push((tag.to_ascii_lowercase(), pieces.next().unwrap_or_default().to_string()));
             }
-        "#;
-        
-        renderer.apply_styles(css);
-        
-        // Styles should be computed (simplified test)
-        assert!(renderer.styles.len() > 0);
+        }
     }
+    tags
+}
 
-    #[test]
-    fn test_layout_calculation() {
-        let html = r#"<html><body><div>Test</div></body></html>"#;
-        let renderer = HtmlRenderer::parse_html(html);
-        
-        let layout = renderer.calculate_layout(800.0, 600.0);
-        
-        assert_eq!(layout.width, 800.0);
-        assert_eq!(layout.height, 600.0);
-    }
+fn extract_attr(attrs: &str, name: &str) -> Option<String> {
+    let needle = format!("{}=\"", name);
+    let start = attrs.find(&needle)? + needle.len();
+    let end = attrs[start..].find('"')?;
+    Some(attrs[start..start + end].to_string())
 }

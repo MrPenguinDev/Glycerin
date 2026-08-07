@@ -7,10 +7,7 @@
 //! - Web API implementations (console, setTimeout, fetch, etc.)
 
 use rquickjs::{
-    atom::PredefinedAtom,
     function::Func,
-    loader::{BuiltinLoader, ModuleLoader, Resolver},
-    prelude::*,
     Context, Module, Runtime,
 };
 use std::collections::HashMap;
@@ -167,13 +164,13 @@ impl TimerApi {
 
 /// Fetch API for HTTP requests
 pub struct FetchApi {
-    client: reqwest::blocking::Client,
+    client: reqwest::Client,
 }
 
 impl FetchApi {
     pub fn new() -> Self {
         FetchApi {
-            client: reqwest::blocking::Client::new(),
+            client: reqwest::Client::new(),
         }
     }
 

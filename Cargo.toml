@@ -6,14 +6,15 @@ description = "Glycerin Browser Engine v1.0 - Production Ready: High-performance
 authors = ["Dharmendra"]
 license = "MIT"
 homepage = "https://glycerin.dev"
-repository = "https://github.com/glycerin-browser/glycerin"
+repository = "https://github.com/MrPenguinDev/glycerin"
 keywords = ["browser", "web", "engine", "privacy", "performance", "rust", "gpu", "rendering"]
 categories = ["web-programming", "graphics", "gui", "multimedia", "rendering"]
 readme = "README.md"
 
 [dependencies]
 # Core Graphics (Vulkan + WebGPU for cross-platform)
-wgpu = { version = "0.18", default-features = false, features = ["vulkan", "webgl"] }
+# Version 0.19.3 pinned to resolve iced 0.12 / web-sys dependency conflict
+wgpu = "0.19.3"
 pollster = "0.3"
 
 # UI Framework (Phase 1: Browser Chrome)
@@ -21,10 +22,10 @@ iced = { version = "0.12", features = ["wgpu", "tokio"] }
 iced_aw = "0.9"
 
 # Networking (HTTP/3 + QUIC + HTTP/2 + HTTP/1.1)
-quinn = { version = "0.10", default-features = false, features = ["rustls", "ring"] }
+quinn = { version = "0.10", default-features = false, features = ["rustls"] }
 h3 = { version = "0.0.4", default-features = false }
 h3-quinn = { version = "0.0.4", default-features = false }
-rustls = { version = "0.21", default-features = false, features = ["ring"] }
+rustls = "0.21.12"
 reqwest = { version = "0.11", features = ["json", "stream", "cookies"] }
 
 # JavaScript Engine (Complete Implementation)
@@ -87,34 +88,31 @@ lazy_static = "1.4"
 log = "0.4"
 env_logger = "0.11"
 
+# Low-Memory Release Profile (Prevents RAM Exhaustion & Freezing)
 [profile.release]
-opt-level = 3
-lto = "fat"
-codegen-units = 1
+opt-level = 2
+lto = false
+codegen-units = 16
 strip = true
 panic = "abort"
 
-# Profile optimized for daily use - balance between size and speed
+# Profile optimized for daily use
 [profile.release-fast]
 inherits = "release"
-lto = "thin"
-codegen-units = 4
+lto = false
+codegen-units = 16
 
-# Debug profile with better optimizations for development
+# Debug profile
 [profile.dev]
 opt-level = 1
 debug = true
 debug-assertions = false
 overflow-checks = true
 
-# Release profile for smaller binaries (good for distribution)
+# Release profile for smaller binaries
 [profile.release-small]
 inherits = "release"
 opt-level = "z"
-lto = true
-
-[lib]
-crate-type = ["cdylib", "rlib"]
 
 [[bin]]
 name = "glycerin"

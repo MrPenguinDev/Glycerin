@@ -4,7 +4,7 @@
 use iced::{
     widget::{
         button, column, container, horizontal_space, pick_list, row, scrollable, text, text_input,
-        tooltip, vertical_rule, Vertical, Space,
+        tooltip, Space, vertical_space,
     },
     Alignment, Color, Element, Length, Padding, Subscription, Task, Theme,
 };
@@ -480,7 +480,7 @@ impl BrowserShell {
         container(content)
             .width(Length::Fill)
             .height(Length::Fill)
-            .style(iced::theme::Container::Custom(Box::new(BackgroundColor)))
+            .style(iced::theme::container::Custom(Box::new(BackgroundColor)))
             .into()
     }
 
@@ -509,7 +509,7 @@ impl BrowserShell {
             button(text("☰").size(16))
                 .padding([4, 10])
                 .on_press(Message::ToggleMenu)
-                .style(iced::theme::Button::Secondary),
+                .style(iced::theme::button::Secondary),
         ]
         .spacing(8);
 
@@ -520,14 +520,14 @@ impl BrowserShell {
         ]
         .align_y(Alignment::Center)
         .padding(Padding::new(8.0).top(10.0).bottom(6.0))
-        .style(iced::theme::Container::Custom(Box::new(TitleBarColor)))
+        .style(iced::theme::container::Custom(Box::new(TitleBarColor)))
         .height(Length::Fixed(36.0))
         .into()
     }
 
     fn view_window_button(&self, color: Color) -> Element<'_, Message> {
         container(Space::with_width(Length::Fixed(12.0)).height(Length::Fixed(12.0)))
-            .style(iced::theme::Container::Custom(Box::new(CircleButton(color))))
+            .style(iced::theme::container::Custom(Box::new(CircleButton(color))))
             .into()
     }
 
@@ -570,14 +570,14 @@ impl BrowserShell {
         .padding(Padding::new(8.0).left(12.0).right(12.0))
         .spacing(12)
         .height(Length::Fixed(50.0))
-        .style(iced::theme::Container::Custom(Box::new(ToolbarColor)))
+        .style(iced::theme::container::Custom(Box::new(ToolbarColor)))
         .into()
     }
 
     fn view_nav_button(&self, icon: &str, message: Message, disabled: bool) -> Element<'_, Message> {
         let btn = button(text(icon).size(18))
             .padding([6, 12])
-            .style(iced::theme::Button::Text);
+            .style(iced::theme::button::Text);
 
         if disabled {
             btn.into()
@@ -590,7 +590,7 @@ impl BrowserShell {
         tooltip(
             button(text(icon).size(16))
                 .padding(6)
-                .style(iced::theme::Button::Text),
+                .style(iced::theme::button::Text),
             tooltip_text,
             tooltip::Position::Bottom,
         )
@@ -604,7 +604,7 @@ impl BrowserShell {
                 button(text(bookmark.title.clone()).size(12))
                     .padding([4, 12])
                     .on_press(Message::BookmarkOpened(bookmark.url.clone()))
-                    .style(iced::theme::Button::Secondary)
+                    .style(iced::theme::button::Secondary)
                     .into()
             })
             .collect();
@@ -613,7 +613,7 @@ impl BrowserShell {
             .spacing(4)
             .padding(Padding::new(8.0).left(12.0).right(12.0))
             .height(Length::Fixed(32.0))
-            .style(iced::theme::Container::Custom(Box::new(BookmarksBarColor)))
+            .style(iced::theme::container::Custom(Box::new(BookmarksBarColor)))
             .into()
     }
 
@@ -622,12 +622,12 @@ impl BrowserShell {
             let progress_bar = container(
                 row![container(Space::with_width(Length::FillPercentage(self.load_progress * 100.0)))
                     .height(Length::Fill)
-                    .style(iced::theme::Container::Custom(Box::new(LoadingProgressColor)))]
+                    .style(iced::theme::container::Custom(Box::new(LoadingProgressColor)))]
                 .height(Length::Fill),
             )
             .height(Length::Fixed(3.0))
             .width(Length::Fill)
-            .style(iced::theme::Container::Custom(Box::new(LoadingTrackColor)));
+            .style(iced::theme::container::Custom(Box::new(LoadingTrackColor)));
 
             progress_bar.into()
         } else {
@@ -695,7 +695,7 @@ impl BrowserShell {
             )
             .padding(16)
             .on_press(Message::BookmarkOpened(url.to_string()))
-            .style(iced::theme::Button::Secondary)
+            .style(iced::theme::button::Secondary)
             .into()
         })
         .collect();
@@ -810,7 +810,7 @@ impl BrowserShell {
             column(items_list).spacing(8),
         ]
         .padding(16)
-        .style(iced::theme::Container::Custom(Box::new(SettingSectionColor)))
+        .style(iced::theme::container::Custom(Box::new(SettingSectionColor)))
         .into()
     }
 
@@ -839,7 +839,7 @@ impl BrowserShell {
                 button(text(url.clone()).size(13))
                     .padding([8, 12])
                     .on_press(Message::BookmarkOpened(url.clone()))
-                    .style(iced::theme::Button::Text)
+                    .style(iced::theme::button::Text)
                     .into()
             })
             .collect();
@@ -865,7 +865,7 @@ impl BrowserShell {
         let retry_button = button(text("Retry").size(14))
             .padding([8, 24])
             .on_press(Message::Reload)
-            .style(iced::theme::Button::Primary);
+            .style(iced::theme::button::Primary);
 
         column![
             error_icon,
@@ -950,11 +950,11 @@ fn normalize_url(input: &str) -> String {
 
 // Custom styling themes
 struct BackgroundColor;
-impl iced::widget::container::StyleSheet for BackgroundColor {
+impl iced::theme::container::StyleSheet for BackgroundColor {
     type Style = Theme;
     
-    fn appearance(&self, _style: &Self::Style) -> iced::widget::container::Appearance {
-        iced::widget::container::Appearance {
+    fn appearance(&self, _style: &Self::Style) -> iced::theme::container::Appearance {
+        iced::theme::container::Appearance {
             background: Some(iced::Background::Color(Color::from_rgb(0.05, 0.05, 0.05))),
             ..Default::default()
         }
@@ -962,11 +962,11 @@ impl iced::widget::container::StyleSheet for BackgroundColor {
 }
 
 struct TitleBarColor;
-impl iced::widget::container::StyleSheet for TitleBarColor {
+impl iced::theme::container::StyleSheet for TitleBarColor {
     type Style = Theme;
     
-    fn appearance(&self, _style: &Self::Style) -> iced::widget::container::Appearance {
-        iced::widget::container::Appearance {
+    fn appearance(&self, _style: &Self::Style) -> iced::theme::container::Appearance {
+        iced::theme::container::Appearance {
             background: Some(iced::Background::Color(Color::from_rgb(0.12, 0.12, 0.12))),
             ..Default::default()
         }
@@ -974,11 +974,11 @@ impl iced::widget::container::StyleSheet for TitleBarColor {
 }
 
 struct CircleButton(Color);
-impl iced::widget::container::StyleSheet for CircleButton {
+impl iced::theme::container::StyleSheet for CircleButton {
     type Style = Theme;
     
-    fn appearance(&self, _style: &Self::Style) -> iced::widget::container::Appearance {
-        iced::widget::container::Appearance {
+    fn appearance(&self, _style: &Self::Style) -> iced::theme::container::Appearance {
+        iced::theme::container::Appearance {
             background: Some(iced::Background::Color(self.0)),
             border_radius: 6.0,
             ..Default::default()
@@ -987,11 +987,11 @@ impl iced::widget::container::StyleSheet for CircleButton {
 }
 
 struct ToolbarColor;
-impl iced::widget::container::StyleSheet for ToolbarColor {
+impl iced::theme::container::StyleSheet for ToolbarColor {
     type Style = Theme;
     
-    fn appearance(&self, _style: &Self::Style) -> iced::widget::container::Appearance {
-        iced::widget::container::Appearance {
+    fn appearance(&self, _style: &Self::Style) -> iced::theme::container::Appearance {
+        iced::theme::container::Appearance {
             background: Some(iced::Background::Color(Color::from_rgb(0.15, 0.15, 0.15))),
             ..Default::default()
         }
@@ -999,11 +999,11 @@ impl iced::widget::container::StyleSheet for ToolbarColor {
 }
 
 struct BookmarksBarColor;
-impl iced::widget::container::StyleSheet for BookmarksBarColor {
+impl iced::theme::container::StyleSheet for BookmarksBarColor {
     type Style = Theme;
     
-    fn appearance(&self, _style: &Self::Style) -> iced::widget::container::Appearance {
-        iced::widget::container::Appearance {
+    fn appearance(&self, _style: &Self::Style) -> iced::theme::container::Appearance {
+        iced::theme::container::Appearance {
             background: Some(iced::Background::Color(Color::from_rgb(0.1, 0.1, 0.1))),
             ..Default::default()
         }
@@ -1011,11 +1011,11 @@ impl iced::widget::container::StyleSheet for BookmarksBarColor {
 }
 
 struct LoadingTrackColor;
-impl iced::widget::container::StyleSheet for LoadingTrackColor {
+impl iced::theme::container::StyleSheet for LoadingTrackColor {
     type Style = Theme;
     
-    fn appearance(&self, _style: &Self::Style) -> iced::widget::container::Appearance {
-        iced::widget::container::Appearance {
+    fn appearance(&self, _style: &Self::Style) -> iced::theme::container::Appearance {
+        iced::theme::container::Appearance {
             background: Some(iced::Background::Color(Color::from_rgb(0.2, 0.2, 0.2))),
             ..Default::default()
         }
@@ -1023,11 +1023,11 @@ impl iced::widget::container::StyleSheet for LoadingTrackColor {
 }
 
 struct LoadingProgressColor;
-impl iced::widget::container::StyleSheet for LoadingProgressColor {
+impl iced::theme::container::StyleSheet for LoadingProgressColor {
     type Style = Theme;
     
-    fn appearance(&self, _style: &Self::Style) -> iced::widget::container::Appearance {
-        iced::widget::container::Appearance {
+    fn appearance(&self, _style: &Self::Style) -> iced::theme::container::Appearance {
+        iced::theme::container::Appearance {
             background: Some(iced::Background::Color(Color::from_rgb(0.0, 0.75, 0.95))),
             ..Default::default()
         }
@@ -1035,11 +1035,11 @@ impl iced::widget::container::StyleSheet for LoadingProgressColor {
 }
 
 struct SettingSectionColor;
-impl iced::widget::container::StyleSheet for SettingSectionColor {
+impl iced::theme::container::StyleSheet for SettingSectionColor {
     type Style = Theme;
     
-    fn appearance(&self, _style: &Self::Style) -> iced::widget::container::Appearance {
-        iced::widget::container::Appearance {
+    fn appearance(&self, _style: &Self::Style) -> iced::theme::container::Appearance {
+        iced::theme::container::Appearance {
             background: Some(iced::Background::Color(Color::from_rgb(0.1, 0.1, 0.1))),
             border_radius: 8.0,
             ..Default::default()

@@ -1,55 +1,26 @@
 ```
-# Compiled and build artifacts
-target/
-*.o
-*.obj
-*.exe
-*.dll
-*.so
-*.a
-*.out
-
 # Dependencies
-Cargo.lock
-vendor/
+target/
 
 # Logs and temp files
 *.log
 *.tmp
-*.swp
 
 # Environment
 .env
 .env.local
-*.env.*
+.env.*
 
 # Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# Coverage
+# Coverage reports
 coverage/
 htmlcov/
 .coverage
 
-# MyPy
-.mypy_cache/
-
-# PyTest
-.pytest_cache/
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Node
-node_modules/
-
-# Virtual environments
-venv/
-.venv/
+# Rust-specific
+**/*.rs.bk
+Cargo.lock
 ```

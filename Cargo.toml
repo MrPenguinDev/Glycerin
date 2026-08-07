@@ -70,6 +70,7 @@ ttf-parser = { version = "0.19", default-features = false }
 
 # URL parsing
 url = "2.5"
+urlencoding = "2.1"
 
 # Base64 encoding
 base64 = "0.21"

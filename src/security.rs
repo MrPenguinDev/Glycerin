@@ -160,8 +160,11 @@ impl ProcessIsolator {
         if !self.site_per_process {
             return false;
         }
-        // Simplified eTLD+1 check simulation
-        current_origin != new_origin
+        fn origin(input: &str) -> &str {
+            let after_scheme = input.split_once("://").map(|(_, rest)| rest).unwrap_or(input);
+            after_scheme.split('/').next().unwrap_or(after_scheme)
+        }
+        origin(current_origin) != origin(new_origin)
     }
 }
 

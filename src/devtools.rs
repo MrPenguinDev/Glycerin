@@ -221,10 +221,6 @@ impl FindInPage {
             start = absolute_pos + 1;
         }
 
-        if !self.matches.is_empty() {
-            self.current_index = Some(0);
-        }
-
         self.matches.len()
     }
 
@@ -286,7 +282,7 @@ impl ViewportController {
     }
 
     pub fn zoom_out(&mut self) {
-        self.zoom_level = (self.zoom_level - 0.1).max(0.1);
+        self.zoom_level = (self.zoom_level - 0.1).max(1.0);
     }
 
     pub fn reset_zoom(&mut self) {

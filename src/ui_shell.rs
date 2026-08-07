@@ -1,4 +1,4 @@
-//! Minimal browser chrome shell.
+//! Browser Chrome & UI Shell.
 
 use iced::{Element, Subscription, Task};
 use std::collections::HashMap;

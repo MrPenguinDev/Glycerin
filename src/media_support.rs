@@ -1,6 +1,8 @@
 //! Phase 3: Media Support Layer
 //! Implements HTML5 video/audio playback, image decoding, and media controls
 
+#[cfg(feature = "native-audio")]
+use rodio::{Decoder, OutputStream, Sink, Source};
 use image::{DynamicImage, GenericImageView, ImageFormat};
 use std::io::Cursor;
 use std::path::PathBuf;
@@ -14,7 +16,7 @@ pub enum MediaType {
     Image(ImageFormat),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AudioFormat {
     Mp3,
     Wav,
@@ -24,7 +26,7 @@ pub enum AudioFormat {
     Unknown,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum VideoFormat {
     Mp4,
     Webm,
@@ -95,92 +97,60 @@ pub struct DecodedImage {
     pub format: ImageFormat,
 }
 
+#[cfg(feature = "native-audio")]
 pub struct AudioManager {
+    stream: Arc<OutputStream>,
+    sink: Arc<Mutex<Option<Arc<Sink>>>>,
     is_playing: bool,
     volume: f32,
     current_time_secs: f64,
-    loaded_audio: Option<Vec<u8>>,
-    loaded_format: Option<AudioFormat>,
 }
 
+#[cfg(feature = "native-audio")]
 impl AudioManager {
     pub fn new() -> Result<Self, &'static str> {
-        Ok(Self {
-            is_playing: false,
-            volume: 1.0,
-            current_time_secs: 0.0,
-            loaded_audio: None,
-            loaded_format: None,
-        })
+        let (stream, stream_handle) = OutputStream::try_default().map_err(|_| "Failed to initialize audio output")?;
+        let sink = Sink::try_new(&stream_handle).map_err(|_| "Failed to create audio sink")?;
+        Ok(Self { stream: Arc::new(stream), sink: Arc::new(Mutex::new(Some(Arc::new(sink)))), is_playing: false, volume: 1.0, current_time_secs: 0.0 })
     }
-    
     pub fn load_audio(&mut self, data: &[u8], format: AudioFormat) -> Result<(), &'static str> {
-        if matches!(format, AudioFormat::Unknown) {
-            return Err("Unknown audio format");
-        }
-        self.loaded_audio = Some(data.to_vec());
-        self.loaded_format = Some(format);
-        self.current_time_secs = 0.0;
+        let cursor = Cursor::new(data.to_vec());
+        let decoder = match format { AudioFormat::Mp3 => Decoder::new_mp3(cursor), AudioFormat::Wav => Decoder::new_wav(cursor), AudioFormat::Ogg => Decoder::new_vorbis(cursor), AudioFormat::Flac => Decoder::new_flac(cursor), AudioFormat::M4a => Decoder::new_aac(cursor), AudioFormat::Unknown => return Err("Unknown audio format") }.map_err(|_| "Failed to decode audio")?;
+        if let Some(sink) = self.sink.lock().unwrap().as_ref() { sink.append(decoder); }
         Ok(())
     }
-    
-    pub fn play(&mut self) {
-        if self.loaded_audio.is_some() {
-            self.is_playing = true;
-        }
-    }
-    
-    pub fn pause(&mut self) {
-        self.is_playing = false;
-    }
-    
-    pub fn stop(&mut self) {
-        self.is_playing = false;
-        self.current_time_secs = 0.0;
-    }
-    
-    pub fn set_volume(&mut self, volume: f32) {
-        self.volume = volume.clamp(0.0, 1.0);
-    }
-    
-    pub fn get_volume(&self) -> f32 {
-        self.volume
-    }
-    
-    pub fn is_playing(&self) -> bool {
-        self.is_playing
-    }
-    
-    pub fn get_current_time(&self) -> f64 {
-        self.current_time_secs
-    }
-    
-    pub fn seek(&mut self, position_secs: f64) {
-        self.current_time_secs = position_secs.max(0.0);
-    }
-    
-    pub fn get_metadata(&self, data: &[u8], format: AudioFormat) -> Option<MediaMetadata> {
-        if matches!(format, AudioFormat::Unknown) || data.is_empty() {
-            return None;
-        }
-        
-        Some(MediaMetadata {
-            duration_secs: 0.0,
-            sample_rate: 0,
-            channels: 0,
-            format: MediaType::Audio(format),
-            title: None,
-            artist: None,
-            album: None,
-        })
-    }
+    pub fn play(&mut self) { if let Some(sink) = self.sink.lock().unwrap().as_ref() { sink.play(); self.is_playing = true; } }
+    pub fn pause(&mut self) { if let Some(sink) = self.sink.lock().unwrap().as_ref() { sink.pause(); self.is_playing = false; } }
+    pub fn stop(&mut self) { if let Some(sink) = self.sink.lock().unwrap().take() { sink.stop(); self.is_playing = false; self.current_time_secs = 0.0; } }
+    pub fn set_volume(&mut self, volume: f32) { self.volume = volume.clamp(0.0, 1.0); if let Some(sink) = self.sink.lock().unwrap().as_ref() { sink.set_volume(self.volume); } }
+    pub fn get_volume(&self) -> f32 { self.volume }
+    pub fn is_playing(&self) -> bool { self.is_playing }
+    pub fn get_current_time(&self) -> f64 { self.current_time_secs }
+    pub fn seek(&mut self, position_secs: f64) { self.current_time_secs = position_secs; }
+    pub fn get_metadata(&self, data: &[u8], format: AudioFormat) -> Option<MediaMetadata> { let cursor = Cursor::new(data.to_vec()); let decoder = match format { AudioFormat::Mp3 => Decoder::new_mp3(cursor), AudioFormat::Wav => Decoder::new_wav(cursor), AudioFormat::Ogg => Decoder::new_vorbis(cursor), AudioFormat::Flac => Decoder::new_flac(cursor), AudioFormat::M4a => Decoder::new_aac(cursor), AudioFormat::Unknown => return None }.ok()?; Some(MediaMetadata { duration_secs: decoder.total_duration().map(|d| d.as_secs_f64()).unwrap_or(0.0), sample_rate: decoder.sample_rate(), channels: decoder.channels(), format: MediaType::Audio(format), title: None, artist: None, album: None }) }
 }
 
-impl Default for AudioManager {
-    fn default() -> Self {
-        Self::new().expect("in-memory audio manager construction cannot fail")
-    }
+#[cfg(feature = "native-audio")]
+impl Default for AudioManager { fn default() -> Self { Self::new().expect("native audio output unavailable") } }
+
+#[cfg(not(feature = "native-audio"))]
+pub struct AudioManager { is_playing: bool, volume: f32, current_time_secs: f64, loaded_audio: Option<Vec<u8>>, loaded_format: Option<AudioFormat> }
+#[cfg(not(feature = "native-audio"))]
+impl AudioManager {
+    pub fn new() -> Result<Self, &'static str> { Ok(Self { is_playing: false, volume: 1.0, current_time_secs: 0.0, loaded_audio: None, loaded_format: None }) }
+    pub fn load_audio(&mut self, data: &[u8], format: AudioFormat) -> Result<(), &'static str> { if matches!(format, AudioFormat::Unknown) { return Err("Unknown audio format"); } self.loaded_audio = Some(data.to_vec()); self.loaded_format = Some(format); self.current_time_secs = 0.0; Ok(()) }
+    pub fn play(&mut self) { if self.loaded_audio.is_some() { self.is_playing = true; } }
+    pub fn pause(&mut self) { self.is_playing = false; }
+    pub fn stop(&mut self) { self.is_playing = false; self.current_time_secs = 0.0; }
+    pub fn set_volume(&mut self, volume: f32) { self.volume = volume.clamp(0.0, 1.0); }
+    pub fn get_volume(&self) -> f32 { self.volume }
+    pub fn is_playing(&self) -> bool { self.is_playing }
+    pub fn get_current_time(&self) -> f64 { self.current_time_secs }
+    pub fn seek(&mut self, position_secs: f64) { self.current_time_secs = position_secs.max(0.0); }
+    pub fn get_metadata(&self, data: &[u8], format: AudioFormat) -> Option<MediaMetadata> { if matches!(format, AudioFormat::Unknown) || data.is_empty() { return None; } Some(MediaMetadata { duration_secs: 0.0, sample_rate: 0, channels: 0, format: MediaType::Audio(format), title: None, artist: None, album: None }) }
 }
+#[cfg(not(feature = "native-audio"))]
+impl Default for AudioManager { fn default() -> Self { Self::new().expect("fallback audio manager construction cannot fail") } }
 pub struct ImageDecoder {
     supported_formats: Vec<ImageFormat>,
 }

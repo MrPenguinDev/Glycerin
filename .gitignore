@@ -1,15 +1,22 @@
 ```
-# Rust/Cargo specific
+# Compiled and build artifacts
 target/
-**/*.rs.bk
-Cargo.lock
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.a
+*.out
 
 # Dependencies
+Cargo.lock
 vendor/
 
 # Logs and temp files
 *.log
 *.tmp
+*.swp
 
 # Environment
 .env
@@ -20,9 +27,29 @@ vendor/
 .vscode/
 .idea/
 *.swp
-*~
+*.swo
 
-# OS generated files
-.DS_Store
-Thumbs.db
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# MyPy
+.mypy_cache/
+
+# PyTest
+.pytest_cache/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node
+node_modules/
+
+# Virtual environments
+venv/
+.venv/
 ```

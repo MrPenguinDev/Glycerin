@@ -10,11 +10,8 @@
 use html5ever::tendril::TendrilSink;
 use html5ever::{parse_document, tree_builder::TreeBuilderOpts};
 use markup5ever_rcdom::{Handle, NodeData, RcDom};
-use selectors::matching::{MatchingParameters, MatchingResult};
 use selectors::{Element, OpaqueElement};
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 
 /// DOM Element wrapper for selector matching
 #[derive(Clone)]
@@ -26,61 +23,61 @@ pub struct DomElement {
     pub handle: Handle,
 }
 
+/// Implementation details for selector matching
+#[derive(Debug, Clone)]
+pub struct DomElementImpl;
+
+impl selectors::SelectorImpl for DomElementImpl {
+    type AttrValue = selectors::parser::AttrValue;
+    type Identifier = selectors::parser::Identifier;
+    type LocalName = selectors::parser::LocalName;
+    type NamespacePrefix = selectors::parser::NamespacePrefix;
+    type NamespaceUrl = selectors::parser::NamespaceUrl;
+    type BorrowedNamespaceUrl = selectors::parser::BorrowedNamespaceUrl;
+    type BorrowedLocalName = selectors::parser::BorrowedLocalName;
+
+    type NonTSPseudoClass = selectors::parser::NonTSPseudoClass;
+    type PseudoElement = selectors::parser::PseudoElement;
+    type VendorPrefix = selectors::parser::VendorPrefix;
+
+    type ExtraMatchingData<'a> = ();
+}
+
 impl Element for DomElement {
-    type Impl = DomElement;
-
-    fn get_local_name(&self) -> &::selectors::Atom {
-        // Simplified - in production would use proper atom table
-        unimplemented!()
-    }
-
-    fn get_namespace(&self) -> &::selectors::Namespace {
-        unimplemented!()
-    }
+    type Impl = DomElementImpl;
 
     fn is_html_element_in_html_document(&self) -> bool {
         true
     }
 
-    fn has_local_name(&self, name: &::selectors::Atom) -> bool {
-        self.tag_name == name.to_string()
+    fn get_id(&self) -> Option<<Self::Impl as selectors::SelectorImpl>::Identifier> {
+        self.id.as_ref().map(|id| selectors::parser::Identifier::from(id.as_str()))
     }
 
-    fn is_same_type(&self, other: &DomElement) -> bool {
-        self.tag_name == other.tag_name
+    fn has_class(&self, name: <Self::Impl as selectors::SelectorImpl>::Identifier, _case_sensitivity: selectors::attr::CaseSensitivity) -> bool {
+        let name_str: &str = name.as_ref();
+        self.classes.iter().any(|c| c == name_str)
     }
 
     fn attr_matches(
         &self,
-        ns: &::selectors::Namespace,
-        local_name: &::selectors::Atom,
+        ns: &selectors::attr::NamespaceConstraint<&<Self::Impl as selectors::SelectorImpl>::NamespaceUrl>,
+        local_name: &<Self::Impl as selectors::SelectorImpl>::LocalName,
         matcher: &dyn selectors::attr::AttrMatcher,
     ) -> bool {
-        if let Some(value) = self.attributes.get(&local_name.to_string()) {
+        if let Some(value) = self.attributes.get(local_name.as_ref()) {
             matcher.matches_value(value)
         } else {
             false
         }
     }
 
-    fn match_non_device_state(
+    fn match_non_ts_pseudo_class(
         &self,
-        _pseudo: &selectors::NonTSPseudoClass,
+        _pc: <Self::Impl as selectors::SelectorImpl>::NonTSPseudoClass,
         _context: &mut selectors::matching::SelectorMatchingContext<Self::Impl>,
-    ) -> bool {
-        false
-    }
-
-    fn match_device_attribute(
-        &self,
-        _selector: &selectors::attr::AttrSelector,
-        _getter: &dyn selectors::attr::AttrGetter,
-    ) -> bool {
-        false
-    }
-
-    fn is_part(&self, _name: &::selectors::Atom) -> bool {
-        false
+    ) -> Result<bool, ()> {
+        Ok(false)
     }
 
     fn is_empty(&self) -> bool {
@@ -97,11 +94,7 @@ impl Element for DomElement {
         self.tag_name == "html"
     }
 
-    fn first_child_element(&self) -> Option<DomElement> {
-        unimplemented!()
-    }
-
-    fn last_child_element(&self) -> Option<DomElement> {
+    fn first_element_child(&self) -> Option<DomElement> {
         unimplemented!()
     }
 

@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 /// Represents a node in the DOM tree for inspection
 #[derive(Debug, Clone)]
-pub structDOMNode {
+pub struct DOMNode {
     pub id: u64,
     pub tag_name: String,
     pub attributes: HashMap<String, String>,

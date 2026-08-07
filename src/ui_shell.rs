@@ -1,8 +1,8 @@
 //! Phase 1: Browser Chrome & UI Shell
 //! Implements address bar, navigation buttons, tab management, and browser window
 
-use iced::widget::{button, column, container, row, text, text_input, Column};
-use iced::{Element, Length, Subscription, Task, Theme};
+use iced::widget::{button, column, container, row, text, text_input};
+use iced::{Element, Length, Subscription};
 use iced_aw::{TabLabel, Tabs};
 use std::collections::HashMap;
 
@@ -73,7 +73,7 @@ impl BrowserShell {
         }
     }
     
-    pub fn update(&mut self, message: Message) -> Task<Message> {
+    pub fn update(&mut self, message: Message) {
         match message {
             Message::UrlSubmitted(url) => {
                 if let Some(tab_id) = self.active_tab_id {
@@ -153,8 +153,6 @@ impl BrowserShell {
             
             _ => {}
         }
-        
-        Task::none()
     }
     
     pub fn view(&self) -> Element<Message> {

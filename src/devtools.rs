@@ -1,10 +1,10 @@
 //! Phase 6: Developer Tools & UX Polish
-//!
+//! 
 //! Implements the DevTools protocol (similar to Chrome DevTools),
 //! find-in-page, zoom controls, and accessibility features.
 
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
 
 /// Represents a node in the DOM tree for inspection
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -35,19 +35,19 @@ pub struct BoxModel {
 pub enum DevToolsMessage {
     #[serde(rename = "DOM.enable")]
     DomEnable { id: u64 },
-
+    
     #[serde(rename = "DOM.getDocument")]
     DomGetDocument { id: u64, depth: i32 },
-
+    
     #[serde(rename = "DOM.inspectNode")]
     DomInspectNode { id: u64, node_id: u64 },
-
+    
     #[serde(rename = "Runtime.evaluate")]
     RuntimeEvaluate { id: u64, expression: String },
-
+    
     #[serde(rename = "Network.enable")]
     NetworkEnable { id: u64 },
-
+    
     #[serde(rename = "Console.enable")]
     ConsoleEnable { id: u64 },
 }
@@ -131,10 +131,8 @@ impl DevToolsSession {
     /// Process an incoming DevTools protocol message
     pub fn handle_message(&mut self, msg: DevToolsMessage) -> DevToolsResponse {
         match msg {
-            DevToolsMessage::DomEnable { id } => DevToolsResponse {
-                id,
-                result: Some(serde_json::json!({})),
-                error: None,
+            DevToolsMessage::DomEnable { id } => {
+                DevToolsResponse { id, result: Some(serde_json::json!({})), error: None }
             },
             DevToolsMessage::DomGetDocument { id, depth: _ } => {
                 // Return root node
@@ -144,25 +142,20 @@ impl DevToolsSession {
                     result: root.map(|n| serde_json::to_value(n).unwrap()),
                     error: None,
                 }
-            }
+            },
             DevToolsMessage::RuntimeEvaluate { id, expression } => {
                 // In real impl, execute JS in renderer
                 DevToolsResponse {
                     id,
-                    result: Some(
-                        serde_json::json!({"value": "Evaluation not implemented in mock"}),
-                    ),
+                    result: Some(serde_json::json!({"value": "Evaluation not implemented in mock"})),
                     error: None,
                 }
-            }
+            },
             _ => DevToolsResponse {
                 id: 0,
                 result: None,
-                error: Some(DevToolsError {
-                    code: -32601,
-                    message: "Method not found".to_string(),
-                }),
-            },
+                error: Some(DevToolsError { code: -32601, message: "Method not found".to_string() }),
+            }
         }
     }
 
@@ -210,7 +203,7 @@ impl FindInPage {
         } else {
             content.to_lowercase()
         };
-
+        
         let search_query = if case_sensitive {
             query.to_string()
         } else {
@@ -254,12 +247,8 @@ impl FindInPage {
 
         let prev_idx = match self.current_index {
             Some(idx) => {
-                if idx == 0 {
-                    self.matches.len() - 1
-                } else {
-                    idx - 1
-                }
-            }
+                if idx == 0 { self.matches.len() - 1 } else { idx - 1 }
+            },
             None => 0,
         };
 
@@ -318,14 +307,14 @@ mod tests {
     fn test_find_in_page() {
         let mut finder = FindInPage::new();
         let content = "Hello world, hello universe, hello everyone";
-
+        
         let count = finder.find(content, "hello", false);
         assert_eq!(count, 3);
-
+        
         let first = finder.next_match();
         assert!(first.is_some());
         assert_eq!(first.unwrap().text, "Hello");
-
+        
         let second = finder.next_match();
         assert_eq!(second.unwrap().text, "hello");
     }
@@ -334,17 +323,15 @@ mod tests {
     fn test_viewport_zoom() {
         let mut vp = ViewportController::new(800.0, 600.0);
         assert_eq!(vp.zoom_level, 1.0);
-
+        
         vp.zoom_in();
         assert_eq!(vp.zoom_level, 1.1);
-
+        
         vp.zoom_out();
         vp.zoom_out();
         assert_eq!(vp.zoom_level, 1.0);
-
-        for _ in 0..50 {
-            vp.zoom_in();
-        }
+        
+        for _ in 0..50 { vp.zoom_in(); }
         assert_eq!(vp.zoom_level, 5.0); // Max cap
     }
 
@@ -353,7 +340,7 @@ mod tests {
         let mut session = DevToolsSession::new();
         session.attach();
         assert!(session.is_attached);
-
+        
         let msg = DevToolsMessage::DomEnable { id: 1 };
         let resp = session.handle_message(msg);
         assert!(resp.error.is_none());

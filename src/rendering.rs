@@ -29,17 +29,7 @@ pub struct ComputedStyle {
 
 impl Default for ComputedStyle {
     fn default() -> Self {
-        Self {
-            display: "block".into(),
-            position: "static".into(),
-            width: None,
-            height: None,
-            margin: [0.0; 4],
-            padding: [0.0; 4],
-            background_color: None,
-            color: (0, 0, 0, 255),
-            font_size: 16.0,
-        }
+        Self { display: "block".into(), position: "static".into(), width: None, height: None, margin: [0.0; 4], padding: [0.0; 4], background_color: None, color: (0, 0, 0, 255), font_size: 16.0 }
     }
 }
 
@@ -55,85 +45,40 @@ pub struct LayoutBox {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Document {
-    pub elements: Vec<DomElement>,
-}
+pub struct Document { pub elements: Vec<DomElement> }
 
-pub struct HtmlRenderer {
-    document: Document,
-    pub styles: HashMap<String, ComputedStyle>,
-}
+pub struct HtmlRenderer { document: Document, pub styles: HashMap<String, ComputedStyle> }
 
 impl HtmlRenderer {
     pub fn parse_html(html: &str) -> Self {
         let mut elements = Vec::new();
         for (tag, attrs) in scan_tags(html) {
             let id = extract_attr(&attrs, "id");
-            let classes = extract_attr(&attrs, "class")
-                .map(|v| v.split_whitespace().map(ToString::to_string).collect())
-                .unwrap_or_default();
-            elements.push(DomElement {
-                tag_name: tag,
-                id,
-                classes,
-                attributes: HashMap::new(),
-            });
+            let classes = extract_attr(&attrs, "class").map(|v| v.split_whitespace().map(ToString::to_string).collect()).unwrap_or_default();
+            elements.push(DomElement { tag_name: tag, id, classes, attributes: HashMap::new() });
         }
-        Self {
-            document: Document { elements },
-            styles: HashMap::new(),
-        }
+        Self { document: Document { elements }, styles: HashMap::new() }
     }
 
-    pub fn get_document(&self) -> Document {
-        self.document.clone()
-    }
-    pub fn build_dom_elements(&self, document: &Document) -> Vec<DomElement> {
-        document.elements.clone()
-    }
+    pub fn get_document(&self) -> Document { self.document.clone() }
+    pub fn build_dom_elements(&self, document: &Document) -> Vec<DomElement> { document.elements.clone() }
     pub fn apply_styles(&mut self, css: &str) {
-        let selectors = css
-            .split('{')
-            .step_by(2)
-            .map(str::trim)
-            .filter(|s| !s.is_empty());
+        let selectors = css.split('{').step_by(2).map(str::trim).filter(|s| !s.is_empty());
         let mut inserted = false;
         for selector in selectors {
-            self.styles.insert(
-                selector.trim_start_matches('}').trim().to_string(),
-                ComputedStyle::default(),
-            );
+            self.styles.insert(selector.trim_start_matches('}').trim().to_string(), ComputedStyle::default());
             inserted = true;
         }
-        if !inserted {
-            self.styles
-                .insert("default".into(), ComputedStyle::default());
-        }
+        if !inserted { self.styles.insert("default".into(), ComputedStyle::default()); }
     }
 
     pub fn calculate_layout(&self, viewport_width: f32, viewport_height: f32) -> LayoutBox {
-        LayoutBox {
-            x: 0.0,
-            y: 0.0,
-            width: viewport_width,
-            height: viewport_height,
-            children: Vec::new(),
-            style: ComputedStyle::default(),
-            text: None,
-        }
+        LayoutBox { x: 0.0, y: 0.0, width: viewport_width, height: viewport_height, children: Vec::new(), style: ComputedStyle::default(), text: None }
     }
 
     pub fn render_to_canvas(&self, canvas: &mut crate::skia_safe::Canvas, layout: &LayoutBox) {
-        let paint = crate::skia_safe::Paint::new(
-            crate::skia_safe::Color::from_argb(255, 255, 255, 255),
-            None,
-        );
-        let rect = crate::skia_safe::Rect::new(
-            layout.x,
-            layout.y,
-            layout.x + layout.width,
-            layout.y + layout.height,
-        );
+        let paint = crate::skia_safe::Paint::new(crate::skia_safe::Color::from_argb(255, 255, 255, 255), None);
+        let rect = crate::skia_safe::Rect::new(layout.x, layout.y, layout.x + layout.width, layout.y + layout.height);
         canvas.draw_rect(rect, &paint);
     }
 }
@@ -141,17 +86,12 @@ impl HtmlRenderer {
 fn scan_tags(html: &str) -> Vec<(String, String)> {
     let mut tags = Vec::new();
     for part in html.split('<').skip(1) {
-        if part.starts_with('/') || part.starts_with('!') {
-            continue;
-        }
+        if part.starts_with('/') || part.starts_with('!') { continue; }
         if let Some(end) = part.find('>') {
             let inside = &part[..end];
             let mut pieces = inside.splitn(2, char::is_whitespace);
             if let Some(tag) = pieces.next().filter(|t| !t.is_empty()) {
-                tags.push((
-                    tag.to_ascii_lowercase(),
-                    pieces.next().unwrap_or_default().to_string(),
-                ));
+                tags.push((tag.to_ascii_lowercase(), pieces.next().unwrap_or_default().to_string()));
             }
         }
     }
